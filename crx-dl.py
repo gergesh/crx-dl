@@ -68,7 +68,21 @@ if args.use_name:
         with zipfile.ZipFile(crx_path, 'r') as zip_file:
             with zip_file.open('manifest.json') as manifest_file:
                 manifest = json.load(manifest_file)
-                ext_name = manifest.get('name', ext_id)
+                ext_name = manifest.get('name', '')
+
+                # Check if name is a localization key (__MSG_<key>_)
+                if (ext_name.startswith('__MSG_') and ext_name.endswith('__')) or not ext_name:
+                    # Extract the message key
+                    msg_key = ext_name[6:-2]  # Remove __MSG_ prefix and __ suffix
+
+                    # Try to load from _locales/en/messages.json
+                    try:
+                        with zip_file.open('_locales/en/messages.json') as messages_file:
+                            messages = json.load(messages_file)
+                            ext_name = messages[msg_key]['message']
+                    except (KeyError, json.JSONDecodeError) as e:
+                        #print('Warning: Could not extract extension name from manifest: {}. Using ID instead.'.format(str(e)))
+                        ext_name = manifest.get('short_name', ext_id)
 
                 # Sanitize filename by removing/replacing invalid characters
                 sanitized_name = "".join(c for c in ext_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
